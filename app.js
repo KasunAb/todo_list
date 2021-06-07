@@ -40,7 +40,7 @@ const defaultItems = [item1,item2,item3];
 Item.insertMany(defaultItems,(err)=>{
   if(err){console.log("err");}
   else{console.log("successsful");}
-})
+});
 // let items = [];
 // let workItems=[];
 
