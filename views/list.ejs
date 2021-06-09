@@ -1,19 +1,24 @@
 <%-include('header')-%>
 
-  <div class="box" id="heading">
-    <h1><%=kindOfDay%></h1>
-  </div>
+<div class="box" id="heading">
+  <h1><%=listName%></h1>
+</div>
 
-  <div class="box">
-    <%items.forEach(item=>{%>
+<div class="box">
+  <%items.forEach(item=>{%>
+  <!-- we use form to catch checkbox toggle -->
+  <form class="" action="/delete" method="post">
     <div class="item">
-      <input type="checkbox">
-      <p><%=item%></p>
+      <input type="checkbox" name="checkbox" value="<%=item._id%>" onchange="this.form.submit()"  >
+      <p><%=item.name%></p>
+      <input type="hidden" name="listName" value="<%=listName%>">
     </div>
-    <%})%>
-    <form class="item" action="/" method="post">
-      <input type="text" name="list_item" placeholder="New list item" autocomplete="off">
-      <button type="submit" name="buttonName" value=<%=kindOfDay%>>+</button>
-    </form>
-  </div>
+
+  </form>
+  <%})%>
+  <form class="item" action="/" method="post">
+    <input type="text" name="list_item" placeholder="New list item" autocomplete="off">
+    <button type="submit" name="listName" value=<%=listName%>>+</button>
+  </form>
+</div>
 <%-include('footer')-%>

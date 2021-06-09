@@ -1,14 +1,18 @@
 //jshint esversion:6
 const express = require("express");
 const mongoose = require("mongoose");
+const { MongoClient, ObjectID } = require('mongodb');
 const app = express();
 
-app.set('view engine','ejs');
-app.use(express.urlencoded({extended:true}));
+app.set('view engine', 'ejs');
+app.use(express.urlencoded({
+  extended: true
+}));
 app.use(express.static("public"));
 mongoose.connect("mongodb://localhost:27017/todolistDB", {
   useUnifiedTopology: true,
-  useNewUrlParser: true
+  useNewUrlParser: true,
+  useFindAndModify: false
 });
 
 //we can create schema like this if we dont need any fancy things after
@@ -16,66 +20,173 @@ mongoose.connect("mongodb://localhost:27017/todolistDB", {
 //   name:String
 // };
 //schema is like blue print
-const itemSchema =new mongoose.Schema ({
-  name:String
+const itemSchema = new mongoose.Schema({
+  name: String
 });
 
 //creatinng model
 //parameters1-collection name(this must singular cz
 //mongoose automatically make this plural and lower case),
 //parameters2-blue print
-const Item = mongoose.model("Item",itemSchema);
+const Item = mongoose.model("Item", itemSchema);
 
-const item1 =new Item({
-  name:"welcome ro your todo list"
+//creating data using Item model
+const item1 = new Item({
+  name: "welcome ro your todo list"
 });
+//creating data using Item model
 const item2 = new Item({
-  name:"hit + button for add new item"
+  name: "hit + button for add new item"
 });
-const item3=({
-  name:"<-- Hit this to delete an item"
+//creating data using Item model
+const item3 = ({
+  name: "<-- Hit this to delete an item"
 });
-const defaultItems = [item1,item2,item3];
 
-Item.insertMany(defaultItems,(err)=>{
-  if(err){console.log("err");}
-  else{console.log("successsful");}
-});
-// let items = [];
-// let workItems=[];
+//creat data collection using list
+const defaultItems = [item1, item2, item3];
+
+
+
+
+
 
 //root of get request
-app.get("/",function(req,res){
-  // let today = new Date();
-  // let options ={
-  //   weekday:'long',
-  //   month:'long',
-  //   year:'numeric'
-  // };
-  // let day = today.toLocaleDateString('en-GB',options);
-  res.render('list',{kindOfDay :Today,items:items});
+app.get("/", function(req, res) {
+  //to find(read)  data from our console
+  Item.find((err, data) => {
+    if (data.length === 0) {
+      //this allow us to insert collection of data to ou data base
+      //1 st parameter - data array
+      //2 nd parameter - callback function
+      Item.insertMany(defaultItems, (err) => {
+        if (err) {
+          console.log("err");
+        } else {
+          console.log("successsful");
+        }
+      });
+      res.redirect("/");
+    } else {
+      res.render('list', {
+        listName: "Today",
+        items: data
+      });
+    }
+  });
 });
 
-app.get("/work",(req,res)=>{
-  res.render('list',{kindOfDay:"workList",items:workItems});
+//Schema to custom list item when call customListName
+const listScheme = new mongoose.Schema({
+  listName: String,
+  items: []
 });
 
-app.get("/about",(req,res)=>{
+//creating model to custom list
+const List = mongoose.model("List", listScheme);
+
+//using express rout paramers we can render pages
+//without creating sevaral html pages
+app.get("/:customListName", (req, res) => {
+  const listName = req.params.customListName;
+  //to avoid agin and again append same list we check given list existing or not
+  //if exsist dont want create one
+  //otherwise have to create new list
+  List.findOne({listName: listName}, (err, foundList) => {
+    if (!err) {
+      if (!foundList) {
+        //create new list
+        const list = new List({
+          listName: listName,
+          items: defaultItems
+        });
+        list.save();
+        res.redirect("/"+listName);
+      } else {
+        //print existing list
+        res.render('list', {listName: foundList.listName,items: foundList.items});
+      }
+    }else{console.log(err);}
+  });
+});
+
+
+//
+// app.get("/work", (req, res) => {
+//   res.render('list', {
+//     listName: "workList",
+//     items: workItems
+//   });
+// });
+
+app.get("/about", (req, res) => {
   res.render('about');
 });
-app.post("/",function(req,res){
-  let listName = req.body.buttonName;
-  if(listName==="workList"){
-    workItems.push(req.body.list_item);
-    res.redirect("/work");
-  }else{
-    items.push(req.body.list_item);
-    res.redirect("/");
-  }
 
+//when post request come root rout ("/") its add items to lists
+//here we get 2 values from body
+//1-list name (ex:-today(home page list))
+//2-list item (item that want to add ex:-brush teeth)
+app.post("/", function(req, res) {
+  const itemName = req.body.list_item;
+  const listName = req.body.listName;
+  //create item from Item model
+  //beacuse when rendering page todo items get from this Item model(objects)
+  const item = new Item({
+    name: itemName
+  });
+  //if list name Today its update home page list
+  if(listName==="Today"){
+    item.save();
+    res.redirect("/");
+  }else{
+  //if list name not the home page list, find the given list and
+  //add list item to items array
+    List.findOne({listName:listName},(err,foundList)=>{
+      if(!err){
+        console.log(foundList.items);
+        foundList.items.push(item);
+        foundList.save();
+      }else{console.log(err);}
+    });
+  //and render equvalent list after update
+    res.redirect("/"+listName);
+  }
 });
 
 
-app.listen(3000,function(){
+app.post("/delete", (req, res) => {
+  //we get item id when when check the chechbox and remove data relavant for that id
+  //and get list name that want to delete item
+  const id = req.body.checkbox;
+  const listName=req.body.listName;
+
+  //this function remove data relavant to given id in given model
+  if(listName === "Today"){
+    Item.findByIdAndRemove(id, (err) => {
+      if (err) {
+        console.log(err);
+      } else {
+        console.log("successsful");
+      }
+    });
+      res.redirect("/");
+  }else{
+    //this is a bullshit
+    //i wrap around 2 days this code line
+    //_id doesnt get id as we expected
+    //so i have to it as ObjectID
+    //but ObjectID not require before
+    //for this i have to requre it,in the above
+    //const { MongoClient, ObjectID } = require('mongodb');
+    List.findOneAndUpdate({ listName: listName }, { $pull: { items: { _id :new ObjectID(id)} } }, (err, foundList) => {
+      if (!err){
+        res.redirect("/" + listName);}
+    });
+  }
+});
+
+//$set:{name:"Naomi"}
+app.listen(3000, function() {
   console.log("listning to port 3000");
 });
