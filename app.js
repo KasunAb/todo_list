@@ -9,7 +9,8 @@ app.use(express.urlencoded({
   extended: true
 }));
 app.use(express.static("public"));
-mongoose.connect("mongodb://localhost:27017/todolistDB", {
+mongoose.connect("mongodb+srv://nimmi:nimmi123@cluster0.hvls5.mongodb.net/todolistDB?retryWrites=true&w=majority", {
+  //mongodb+srv://nimmi:<password>@cluster0.hvls5.mongodb.net/myFirstDatabase?retryWrites=true&w=majority
   useUnifiedTopology: true,
   useNewUrlParser: true,
   useFindAndModify: false
@@ -186,7 +187,11 @@ app.post("/delete", (req, res) => {
   }
 });
 
-//$set:{name:"Naomi"}
-app.listen(3000, function() {
-  console.log("listning to port 3000");
+let port = process.env.PORT;
+if (port == null || port == "") {
+  port = 8000;
+}
+
+app.listen(port, function() {
+  console.log("server has started successsfully");
 });
